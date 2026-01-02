@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 圖片 裁切壓縮 (雷神等比例版)</title>
+    <title>AI 圖片裁切＋壓縮 (雷神製作版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
 
-    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-xl border border-slate-100">
-        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">圖片 SEO 處理工具</h2>
-        <p class="text-slate-500 text-sm mb-8 text-center">寬度 1200px 等比例縮放 | WebP 極致壓縮</p>
+    <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-xl border border-slate-100">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">圖片 SEO 終極優化工具</h2>
+        <p class="text-slate-500 text-sm mb-8 text-center">寬度 1200px 等比例 | WebP 高效壓縮 | 體積大幅縮減</p>
 
         <div class="space-y-6">
             <div class="grid grid-cols-2 gap-4 text-left">
@@ -21,15 +21,18 @@
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">壓縮品質 (建議 0.6-0.8)</label>
-                    <input type="number" id="qualityInput" value="0.7" step="0.05" min="0.1" max="1.0"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">壓縮深度 (越小檔案越小)</label>
+                    <select id="qualityInput" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
+                        <option value="0.8">平衡模式 (推薦 SEO)</option>
+                        <option value="0.6" selected>深度壓縮 (檔案極小)</option>
+                        <option value="0.4">極致壓縮 (適合多圖)</option>
+                    </select>
                 </div>
             </div>
 
             <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
             <button onclick="document.getElementById('fileInput').click()" 
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all text-lg">
                 選取圖片並開始處理
             </button>
 
@@ -37,7 +40,7 @@
 
             <button id="downloadBtn" style="display: none;"
                 class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-                下載全部優化圖片 (ZIP)
+                下載全部處理好的圖片 (ZIP)
             </button>
         </div>
     </div>
@@ -54,9 +57,9 @@
         fileInput.addEventListener('change', async (e) => {
             const files = e.target.files;
             const suffix = suffixInput.value.trim();
-            const quality = parseFloat(qualityInput.value) || 0.7;
+            const quality = parseFloat(qualityInput.value);
 
-            if (!suffix) { alert('請輸入名稱！'); return; }
+            if (!suffix) { alert('請輸入英文名稱！'); return; }
             progressList.innerHTML = '';
             processedFiles = [];
 
@@ -69,7 +72,7 @@
                 item.innerHTML = `
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-mono text-slate-500">${newFileName}</span>
-                        <span id="st-${i}" class="text-xs text-blue-500 font-bold">處理中...</span>
+                        <span id="st-${i}" class="text-xs text-blue-500 font-bold italic">優化中...</span>
                     </div>
                     <div id="action-${i}" class="hidden"></div>
                 `;
@@ -78,14 +81,14 @@
                 const blob = await processImage(files[i], quality);
                 processedFiles.push({ blob, name: newFileName });
 
-                document.getElementById(`st-${i}`).innerText = '✔️ 完成';
+                document.getElementById(`st-${i}`).innerText = '✔️ 處理完成';
                 document.getElementById(`st-${i}`).className = 'text-emerald-500 font-bold text-xs';
                 
                 const actionBox = document.getElementById(`action-${i}`);
                 actionBox.className = "flex justify-end mt-1";
                 const dlLink = document.createElement('button');
                 dlLink.innerText = "💾 單張下載";
-                dlLink.className = "text-xs bg-white border border-slate-200 px-3 py-1 rounded-md hover:bg-slate-100 shadow-sm";
+                dlLink.className = "text-xs bg-white border border-slate-200 px-3 py-1 rounded-md hover:bg-slate-100 shadow-sm transition-colors";
                 dlLink.onclick = () => {
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
@@ -105,7 +108,7 @@
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         
-                        // --- 核心修改：寬度固定 1200，高度等比例計算 ---
+                        // 寬度固定 1200，高度等比例
                         const targetWidth = 1200;
                         const scaleFactor = targetWidth / img.width;
                         const targetHeight = img.height * scaleFactor;
@@ -114,10 +117,9 @@
                         canvas.height = targetHeight;
                         
                         const ctx = canvas.getContext('2d');
-                        // 滿版繪製，不留白邊
                         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-                        // 轉為 WebP 格式並進行品質壓縮
+                        // 轉為 WebP 並進行品質壓縮
                         canvas.toBlob((blob) => resolve(blob), 'image/webp', quality);
                     };
                     img.src = e.target.result;
@@ -132,7 +134,7 @@
             const content = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(content);
-            a.download = `${suffixInput.value}_processed.zip`;
+            a.download = `${suffixInput.value}_images.zip`;
             a.click();
         };
     </script>
