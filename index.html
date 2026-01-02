@@ -3,38 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 圖片 裁切壓縮 (雷神極致壓縮版)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+    <title>AI 圖片 裁切壓縮 (雷神等比例版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6 text-left">
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
 
     <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-xl border border-slate-100">
-        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center text-left">圖片 SEO 終極壓縮工具</h2>
-        <p class="text-slate-500 text-sm mb-8 text-center text-left">專業級引擎 | 1200x630 裁切 | 體積大幅縮減</p>
+        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">圖片 SEO 處理工具</h2>
+        <p class="text-slate-500 text-sm mb-8 text-center">寬度 1200px 等比例縮放 | WebP 極致壓縮</p>
 
         <div class="space-y-6">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4 text-left">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">英文名稱 (後綴)</label>
-                    <input type="text" id="suffixInput" placeholder="例如: macbook_pro" 
+                    <input type="text" id="suffixInput" placeholder="例如: product_view" 
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">壓縮深度 (越小檔案越小)</label>
-                    <select id="qualitySelect" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                        <option value="0.5">極限壓縮 (體積最小)</option>
-                        <option value="0.7" selected>平衡模式 (推薦 SEO)</option>
-                        <option value="0.9">高品質 (檔案較大)</option>
-                    </select>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">壓縮品質 (建議 0.6-0.8)</label>
+                    <input type="number" id="qualityInput" value="0.7" step="0.05" min="0.1" max="1.0"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                 </div>
             </div>
 
             <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
             <button onclick="document.getElementById('fileInput').click()" 
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
-                選取 6.5M 大圖並開始壓縮
+                選取圖片並開始處理
             </button>
 
             <div id="progressList" class="space-y-3 pt-4"></div>
@@ -49,7 +45,7 @@
     <script>
         const fileInput = document.getElementById('fileInput');
         const suffixInput = document.getElementById('suffixInput');
-        const qualitySelect = document.getElementById('qualitySelect');
+        const qualityInput = document.getElementById('qualityInput');
         const progressList = document.getElementById('progressList');
         const downloadBtn = document.getElementById('downloadBtn');
 
@@ -58,66 +54,75 @@
         fileInput.addEventListener('change', async (e) => {
             const files = e.target.files;
             const suffix = suffixInput.value.trim();
-            const quality = parseFloat(qualitySelect.value);
+            const quality = parseFloat(qualityInput.value) || 0.7;
 
             if (!suffix) { alert('請輸入名稱！'); return; }
             progressList.innerHTML = '';
             processedFiles = [];
-            downloadBtn.style.display = 'none';
 
             for (let i = 0; i < files.length; i++) {
                 const index = (i + 1).toString().padStart(2, '0');
-                const newFileName = `${suffix}_${index}.jpg`; // JPG 對於照片類的壓縮效果通常比 PNG 好
+                const newFileName = `${suffix}_${index}.webp`;
 
                 const item = document.createElement('div');
                 item.className = "p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-2";
                 item.innerHTML = `
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-mono text-slate-500">${newFileName}</span>
-                        <span id="st-${i}" class="text-xs text-blue-500 font-bold italic">引擎壓縮中...</span>
+                        <span id="st-${i}" class="text-xs text-blue-500 font-bold">處理中...</span>
                     </div>
-                    <div id="action-${i}" class="hidden flex justify-end gap-2 mt-2"></div>
+                    <div id="action-${i}" class="hidden"></div>
                 `;
                 progressList.appendChild(item);
 
-                try {
-                    const compressedBlob = await compressAction(files[i], quality);
-                    processedFiles.push({ blob: compressedBlob, name: newFileName });
+                const blob = await processImage(files[i], quality);
+                processedFiles.push({ blob, name: newFileName });
 
-                    const sizeKB = Math.round(compressedBlob.size / 1024);
-                    document.getElementById(`st-${i}`).innerText = `✔️ 完成 (${sizeKB} KB)`;
-                    document.getElementById(`st-${i}`).className = 'text-emerald-500 font-bold text-xs';
-                    
-                    const actionBox = document.getElementById(`action-${i}`);
-                    actionBox.classList.remove('hidden');
-                    const btn = document.createElement('button');
-                    btn.innerText = "💾 單張下載";
-                    btn.className = "text-[10px] bg-white border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-100 shadow-sm transition-all";
-                    btn.onclick = () => {
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(compressedBlob);
-                        a.download = newFileName;
-                        a.click();
-                    };
-                    actionBox.appendChild(btn);
-                } catch (err) {
-                    document.getElementById(`st-${i}`).innerText = '❌ 錯誤';
-                }
+                document.getElementById(`st-${i}`).innerText = '✔️ 完成';
+                document.getElementById(`st-${i}`).className = 'text-emerald-500 font-bold text-xs';
+                
+                const actionBox = document.getElementById(`action-${i}`);
+                actionBox.className = "flex justify-end mt-1";
+                const dlLink = document.createElement('button');
+                dlLink.innerText = "💾 單張下載";
+                dlLink.className = "text-xs bg-white border border-slate-200 px-3 py-1 rounded-md hover:bg-slate-100 shadow-sm";
+                dlLink.onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = newFileName;
+                    a.click();
+                };
+                actionBox.appendChild(dlLink);
             }
-            if (processedFiles.length > 0) downloadBtn.style.display = 'block';
+            downloadBtn.style.display = 'block';
         });
 
-        function compressAction(file, quality) {
-            return new Promise((resolve, reject) => {
-                new Compressor(file, {
-                    quality: quality,
-                    width: 1200,
-                    height: 630,
-                    resize: 'cover', // 自動裁切並填滿 1200x630
-                    mimeType: 'image/jpeg', // 使用 JPEG 達到最佳壓縮率
-                    success(result) { resolve(result); },
-                    error(err) { reject(err); },
-                });
+        function processImage(file, quality) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        
+                        // --- 核心修改：寬度固定 1200，高度等比例計算 ---
+                        const targetWidth = 1200;
+                        const scaleFactor = targetWidth / img.width;
+                        const targetHeight = img.height * scaleFactor;
+
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        
+                        const ctx = canvas.getContext('2d');
+                        // 滿版繪製，不留白邊
+                        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+                        // 轉為 WebP 格式並進行品質壓縮
+                        canvas.toBlob((blob) => resolve(blob), 'image/webp', quality);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
             });
         }
 
@@ -127,7 +132,7 @@
             const content = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(content);
-            a.download = `${suffixInput.value}_optimized.zip`;
+            a.download = `${suffixInput.value}_processed.zip`;
             a.click();
         };
     </script>
