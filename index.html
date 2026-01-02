@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 圖片 SEO 一條龍 (GitHub 靜態版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+
+    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-xl border border-slate-100">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">圖片 SEO 處理工具</h2>
+        <p class="text-slate-500 text-sm mb-8 text-center">自動縮放 1200x630 | 瀏覽器本地壓縮 | 自定義流水號</p>
+
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">1. 設定英文名稱 (文章後綴)</label>
+                <input type="text" id="suffixInput" placeholder="例如: travel_tokyo_guide" 
+                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">2. 選取圖片 (支援多選)</label>
+                <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+                <button onclick="document.getElementById('fileInput').click()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95">
+                    點擊上傳並開始處理
+                </button>
+            </div>
+
+            <div id="progressList" class="space-y-2 max-h-60 overflow-y-auto pt-4"></div>
+
+            <button id="downloadBtn" style="display: none;"
+                class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                <span>下載全部優化圖片 (ZIP)</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const suffixInput = document.getElementById('suffixInput');
+        const progressList = document.getElementById('progressList');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let processedFiles = [];
+
+        fileInput.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            const suffix = suffixInput.value.trim();
+
+            if (!suffix) {
+                alert('請先輸入英文名稱！');
+                fileInput.value = '';
+                return;
+            }
+
+            if (files.length === 0) return;
+
+            // 重置狀態
+            progressList.innerHTML = '';
+            processedFiles = [];
+            downloadBtn.style.display = 'none';
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const index = (i + 1).toString().padStart(2, '0');
+                const newFileName = `${suffix}_${index}.png`;
+
+                // 建立清單項目
+                const item = document.createElement('div');
+                item.className = "flex justify-between items-center p-3 bg-slate-50 rounded-lg text-sm border border-slate-100";
+                item.innerHTML = `<span>${newFileName}</span><span id="status-${i}" class="text-blue-600 font-bold italic">處理中...</span>`;
+                progressList.appendChild(item);
+
+                try {
+                    const blob = await processImage(file);
+                    processedFiles.push({ blob, name: newFileName });
+                    document.getElementById(`status-${i}`).innerText = '✔️ 完成';
+                    document.getElementById(`status-${i}`).className = 'text-emerald-500 font-bold';
+                } catch (err) {
+                    document.getElementById(`status-${i}`).innerText = '❌ 失敗';
+                    document.getElementById(`status-${i}`).className = 'text-red-500 font-bold';
+                }
+            }
+
+            if (processedFiles.length > 0) {
+                downloadBtn.style.display = 'flex';
+            }
+        });
+
+        // 圖片處理核心邏輯 (縮放 + 壓縮)
+        function processImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        // 固定尺寸 1200x630
+                        canvas.width = 1200;
+                        canvas.height = 630;
+
+                        // 填滿背景 (防止透明圖變黑)
+                        ctx.fillStyle = "white";
+                        ctx.fillRect(0, 0, 1200, 630);
+
+                        // 計算縮放 (保持比例裁切或是強制拉伸)
+                        // 這裡採用強制拉伸符合 1200x630
+                        ctx.drawImage(img, 0, 0, 1200, 630);
+
+                        // 轉為 Blob 並進行品質壓縮 (0.8 代表 80% 品質)
+                        canvas.toBlob((blob) => {
+                            resolve(blob);
+                        }, 'image/png', 0.8);
+                    };
+                };
+            });
+        }
+
+        // 打包 ZIP 並下載
+        downloadBtn.onclick = async () => {
+            const zip = new JSZip();
+            processedFiles.forEach(file => {
+                zip.file(file.name, file.blob);
+            });
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = `${suffixInput.value}_processed.zip`;
+            link.click();
+        };
+    </script>
+</body>
+</html>
